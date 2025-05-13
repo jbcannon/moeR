@@ -11,6 +11,26 @@
 #' @param diam_cm numeric, diameter of tree at point of tilt measurement,
 #' usually at the point of strap attachment
 #' @param plot boolean, if `TRUE` plots a stress-strain diagram
+#' @examples
+#' library(readr)
+#' library(moeR)
+#' 
+#' #load data
+#' tree = read_csv(system.file('extdata', 'tree_1.csv', package = 'moeR'))
+#' 
+#' #calculate turning moment
+#' tree$M_kNm = tree$F_kN* tree$strap_ht_m
+#' 
+#' #calculate stress-strain diagram
+#' ss = stress_strain(moment_kNm = tree$M_kNm,
+#'   tilt_deg = tree$tilt,
+#'   ht_m = 1.3,
+#'   diam_cm = 20.2,
+#'   plot = TRUE)
+#' #drop na vals
+#' ss = ss[!is.na(ss$stress),]
+#' 
+#' head(ss)
 #' @export
 stress_strain = function(moment_kNm, tilt_deg, ht_m, diam_cm, plot=TRUE) {
   #ensure values are entered correctly
@@ -33,10 +53,10 @@ stress_strain = function(moment_kNm, tilt_deg, ht_m, diam_cm, plot=TRUE) {
   #organize and clean up data for s-s diagram
   df = data.frame(stress=stress, strain=strain)
   if(plot) {
-    plot(stress~strain, df, type='l', lwd=1, col=grey(0.5),
+    graphics::plot(stress~strain, df, type='l', lwd=1, col=grDevices::grey(0.5),
          xlab = 'shear strain (m)',
          ylab = expression(shear~stress~(kN~m)))
-    points(stress~strain, df, pch=16, cex=0.1)
+    graphics::points(stress~strain, df, pch=16, cex=0.1)
   }
   return(df)
 }
@@ -57,6 +77,32 @@ stress_strain = function(moment_kNm, tilt_deg, ht_m, diam_cm, plot=TRUE) {
 #' of stress/strain readings to include in the linear fit. A value of 0.33 
 #' represents that of values left of the peak, >=33% will be included in the model
 #' fit.
+#' @param cleanup_width, numeric, aids with gap filling missing data. When either 
+#' stress or strain information is missing, fill in the value using the median
+#' from the `cleanup_width` surrounding values.
+#' @importFrom tidyr drop_na
+#' @importFrom dplyr filter select slice
+#' @importFrom zoo rollapply
+#' @examples
+#' library(readr)
+#' library(moeR)
+#' 
+#' #load data
+#' tree = read_csv(system.file('extdata', 'tree_1.csv', package = 'moeR'))
+#' 
+#' #calculate turning moment
+#' tree$M_kNm = tree$F_kN* tree$strap_ht_m
+#' 
+#' #calculate stress-strain diagram
+#' ss = stress_strain(moment_kNm = tree$M_kNm,
+#'   tilt_deg = tree$tilt,
+#'   ht_m = 1.3,
+#'   diam_cm = 20.2,
+#'   plot = FALSE)
+#'   
+#'  # calculate modulus of elasticity
+#'  moe = getMOE(ss$stress, ss$strain, plot=TRUE)
+#'  print(moe)
 #' @export
 getMOE = function(stress, strain, plot=TRUE, robustness = 0.33, cleanup_width=5){
   stopifnot(robustness<1 & robustness > 0)
@@ -73,9 +119,7 @@ getMOE = function(stress, strain, plot=TRUE, robustness = 0.33, cleanup_width=5)
   df = tidyr::drop_na(df)
   df = dplyr::filter(df, strain > 0 & stress > 0 )
   #fill in some missing values width = 5
-  rap = c(zoo::rollapply(df$stress, width=cleanup_width, FUN = median), rep(NA,cleanup_width-1))
-  head(rap)
-  head(df$stress)
+  rap = c(zoo::rollapply(df$stress, width=cleanup_width, FUN = stats::median), rep(NA,cleanup_width-1))
   
   # get MOE
   peak_stress = max(df$stress, na.rm=TRUE)
@@ -90,10 +134,10 @@ getMOE = function(stress, strain, plot=TRUE, robustness = 0.33, cleanup_width=5)
   # iteratively subset stress/strain data and find 
   for(i in n:n_req) {
     moe_tmp = dplyr::slice(moe, 1:i)
-    mod = lm(stress ~ strain, data = moe_tmp)
-    rmse = sqrt(mean(resid(mod)^2))
-    out_tmp = data.frame(moe = coef(mod)[2],
-                         intercept = coef(mod)[1],
+    mod = stats::lm(stress ~ strain, data = moe_tmp)
+    rmse = sqrt(mean(stats::resid(mod)^2))
+    out_tmp = data.frame(moe = stats::coef(mod)[2],
+                         intercept = stats::coef(mod)[1],
                          rmse = rmse,
                          r2 = summary(mod)$r.squared)
     out[[length(out)+1]] = out_tmp
@@ -103,14 +147,14 @@ getMOE = function(stress, strain, plot=TRUE, robustness = 0.33, cleanup_width=5)
   
   # plot stress-strain + MOE
   if(plot) {
-    plot(stress~strain, df, type='l', lwd=1, col=grey(0.5),
+    graphics::plot(stress~strain, df, type='l', lwd=1, col=grDevices::grey(0.5),
          xlab = 'shear strain (m)',
          ylab = expression(shear~stress~(kN~m)))
-    points(stress~strain, df, pch=16, cex=0.1)
-    abline(a = out$intercept, b = out$moe, col='red')
+    graphics::points(stress~strain, df, pch=16, cex=0.1)
+    graphics::abline(a = out$intercept, b = out$moe, col='red')
     r2 = round(out$r2,4)
     moe = round(out$moe,1)
-    title(paste0('MOE: ', moe, '; R2: ', r2))
+    graphics::title(main=paste0('MOE: ', moe, '; R2: ', r2))
   }
   return(out)
 }
