@@ -143,6 +143,7 @@ getMOE = function(stress, strain, plot=TRUE, robustness = 0.33, cleanup_width=5)
     out[[length(out)+1]] = out_tmp
   }; out = do.call(rbind, out); 
   out = dplyr::filter(out, r2 == max(r2))
+  if(nrow(out) > 1) out = out[1,] #if several have same r2, just get first
   rownames(out) = NULL
   
   # plot stress-strain + MOE
