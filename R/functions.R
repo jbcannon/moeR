@@ -117,7 +117,7 @@ getMOE = function(stress, strain, plot=TRUE, robustness = 0.33, cleanup_width=5)
   # tidy input data
   df = data.frame(stress=stress, strain=strain)
   df = tidyr::drop_na(df)
-  df = dplyr::filter(df, strain > 0 & stress > 0 )
+  #df = dplyr::filter(df, strain > 0 & stress > 0 )
   #fill in some missing values width = 5
   rap = c(zoo::rollapply(df$stress, width=cleanup_width, FUN = stats::median), rep(NA,cleanup_width-1))
   
