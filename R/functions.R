@@ -1,6 +1,6 @@
 #' Create data for stress-strain curve from tree winching data
 #'
-#' Function to calculate stress (xx) and strain (xx) information from tree winching
+#' Function to calculate stress (Nm^2) and strain (unitless) information from tree winching
 #' data as a pre-requisite for calculate modulus of elasticity.
 #' @param moment_kNm numeric, vector of values representing turning moment in
 #' kNm. Usually calcualted as applied force (kN) from tensiometer times height
@@ -47,9 +47,9 @@ stress_strain = function(moment_kNm, tilt_deg, ht_m, diam_cm, plot=TRUE) {
   
   # calculate values
   c = (diam_cm/2) / 100 #distance from neutral axis (ie radius)
-  I = pi/4 * (diam_cm/200)^2 # second moment of area for a circle
+  I = pi/4 * (diam_cm/200)^4 # second moment of area for a circle
   stress = moment_kNm * c / I # in kN (Knm*m / m2)
-  strain = ht_m * sin(pi*tilt_deg/180) #horizontal displacement of attachment point (strain)
+  strain = ht_m/ht_m * sin(pi*tilt_deg/180) #horizontal displacement of attachment point (strain) divided by height (height cancels)
   #organize and clean up data for s-s diagram
   df = data.frame(stress=stress, strain=strain)
   if(plot) {
